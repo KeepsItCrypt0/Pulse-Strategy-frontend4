@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import Web3 from 'web3';
-import { contractAbi } from './abi';
+import { contractAbi, vplsAbi } from './abi';
 import WalletInfo from './components/WalletInfo';
 import ContractInfo from './components/ContractInfo';
 import IssueShares from './components/IssueShares';
@@ -27,7 +27,6 @@ const App = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Initialize Web3 and contract
   useEffect(() => {
     const initWeb3 = async () => {
       setLoading(true);
@@ -40,7 +39,7 @@ const App = () => {
             await window.ethereum.request({ method: 'eth_requestAccounts' });
           } catch (err) {
             console.error('Wallet connection failed:', err);
-            setError('Failed to connect wallet. Please try again.');
+            setError('Failed to connect wallet. Ensure MetaMask is set to Ethereum Mainnet.');
             setLoading(false);
             return;
           }
@@ -50,13 +49,18 @@ const App = () => {
         }
 
         const web3Instance = new Web3(provider);
-        console.log('Web3 initialized:', web3Instance);
+        console.log('Web3 initialized:', !!web3Instance);
+
+        const networkId = await web3Instance.eth.net.getId();
+        if (networkId !== 1) {
+          setError('Please switch to Ethereum Mainnet in your wallet.');
+          setLoading(false);
+          return;
+        }
 
         const plstrContract = new web3Instance.eth.Contract(contractAbi, PLSTR_ADDRESS);
-        console.log('PLSTR contract initialized:', plstrContract);
-
-        const vplsContractInstance = new web3Instance.eth.Contract(contractAbi, VPLS_ADDRESS);
-        console.log('vPLS contract initialized:', vplsContractInstance);
+        const vplsContractInstance = new web3Instance.eth.Contract(vplsAbi, VPLS_ADDRESS);
+        console.log('Contracts initialized:', !!plstrContract, !!vplsContractInstance);
 
         const accounts = await web3Instance.eth.getAccounts();
         console.log('Accounts:', accounts);
@@ -66,24 +70,22 @@ const App = () => {
         setVplsContract(vplsContractInstance);
         setAccount(accounts[0] || null);
 
-        // Check if connected account is owner
         if (accounts[0]) {
           const owner = await plstrContract.methods.owner().call();
-          console.log('Owner:', owner);
+          console.log('StrategyController:', owner);
           setIsOwner(accounts[0].toLowerCase() === owner.toLowerCase());
         }
 
         setLoading(false);
       } catch (err) {
         console.error('Initialization error:', err);
-        setError('Failed to initialize. Please refresh and try again.');
+        setError('Failed to initialize. Please refresh and ensure Ethereum Mainnet is selected.');
         setLoading(false);
       }
     };
     initWeb3();
   }, []);
 
-  // Auto-refresh data on transaction
   useEffect(() => {
     if (web3 && account && contract) {
       const refreshData = async () => {
@@ -101,28 +103,27 @@ const App = () => {
 
   return (
     <div className="min-h-screen">
-      <header className="text-center py-12 bg-gradient-to-r from-blue-900 to-purple-900">
-        <h1 className="text-5xl sm:text-6xl font-extrabold animate-fadeIn">PulseStrategy</h1>
-        <p className="mt-2 text-lg sm:text-xl text-gray-300">Decentralized Strategy for PLSTR and vPLS</p>
+      <header className="text-center py-16 bg-gradient-to-r from-cyan-900 to-purple-900">
+        <h1 className="animate-fadeIn">PulseStrategy</h1>
       </header>
-      <main className="container mx-auto py-8 space-y-8">
+      <main className="container py-12 space-y-12">
         {loading ? (
           <div className="text-center">
-            <div className="inline-block animate-spin rounded-full h-12 w-12 border-t-4 border-blue-500"></div>
-            <p className="mt-4 text-xl">Connecting to blockchain...</p>
+            <div className="inline-block animate-spin rounded-full h-16 w-16 border-t-4 border-cyan-500"></div>
+            <p className="mt-6 text-xl">Connecting to blockchain...</p>
           </div>
         ) : error ? (
           <div className="text-center text-red-400">
             <p className="text-xl">{error}</p>
             <button
               onClick={() => window.location.reload()}
-              className="mt-4 btn-primary"
+              className="mt-6 btn-primary"
             >
               Retry
             </button>
           </div>
         ) : account ? (
-          <div className="space-y-8 animate-fadeIn">
+          <div className="space-y-12 animate-fadeIn">
             <WalletInfo web3={web3} account={account} contract={contract} vplsContract={vplsContract} refresh={refresh} />
             <ContractInfo web3={web3} contract={contract} vplsContract={vplsContract} refresh={refresh} />
             <IssueShares web3={web3} account={account} contract={contract} vplsContract={vplsContract} refresh={refresh} setRefresh={setRefresh} />
@@ -141,11 +142,11 @@ const App = () => {
                   setError('Failed to connect wallet. Please try again.');
                 }
               }}
-              className="btn-primary text-lg"
+              className="btn-primary text-xl animate-glow"
             >
               Connect Wallet
             </button>
-            <p className="mt-4 text-gray-400">Connect your wallet to interact with PulseStrategy.</p>
+            <p className="mt-6 text-gray-400">Connect your wallet to interact with PulseStrategy.</p>
           </div>
         )}
       </main>
