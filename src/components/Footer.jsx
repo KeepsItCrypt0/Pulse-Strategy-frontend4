@@ -1,7 +1,7 @@
 const Footer = () => (
-  <footer className="bg-gray-900 py-8 text-center text-gray-300">
+  <footer className="bg-gray-950 py-12 text-center text-gray-300">
     <div className="container">
-      <p className="mb-4">
+      <p className="mb-6">
         <strong>Disclaimer:</strong> This is a decentralized finance (DeFi) application. Use at your own risk. Ensure you understand the risks involved in interacting with smart contracts.
       </p>
       <p>
