@@ -39,11 +39,17 @@ const App = () => {
         provider = window.ethereum;
         try {
           console.log('Attempting wallet connection...');
-          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          // Ensure MetaMask is unlocked and on correct network
+          await window.ethereum.request({
+            method: 'wallet_requestPermissions',
+            params: [{ eth_accounts: {} }]
+          });
+          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          console.log('Wallet connected, accounts:', accounts);
           web3Instance = new Web3(provider);
         } catch (err) {
           console.error('Wallet connection failed:', err);
-          setError('Failed to connect wallet. Ensure MetaMask is installed and set to Ethereum Mainnet.');
+          setError('Failed to connect wallet. Ensure MetaMask is installed, unlocked, and set to Ethereum Mainnet.');
           setLoading(false);
           return;
         }
@@ -62,7 +68,7 @@ const App = () => {
           } catch (err) {
             console.error(`RPC ${rpc} failed:`, err);
             if (rpc === RPC_URLS[RPC_URLS.length - 1]) {
-              setError('All RPC endpoints failed. Please check your network or install MetaMask.');
+              setError('No wallet detected and all RPC endpoints failed. Please install MetaMask or check your network.');
               setLoading(false);
               return;
             }
@@ -73,7 +79,7 @@ const App = () => {
       try {
         const networkId = await web3Instance.eth.net.getId();
         if (networkId !== 1) {
-          setError('Please switch to Ethereum Mainnet in your wallet.');
+          setError('Please switch to Ethereum Mainnet (Chain ID 1) in your wallet.');
           setLoading(false);
           return;
         }
@@ -99,7 +105,7 @@ const App = () => {
         setLoading(false);
       } catch (err) {
         console.error('Initialization error:', err);
-        setError('Failed to initialize. Please refresh and ensure Ethereum Mainnet is selected.');
+        setError('Failed to initialize contracts. Please refresh and ensure Ethereum Mainnet is selected.');
         setLoading(false);
       }
     };
@@ -126,15 +132,27 @@ const App = () => {
     setError(null);
     try {
       if (!window.ethereum) {
-        setError('No wallet detected. Please install MetaMask.');
+        setError('No wallet detected. Please install MetaMask or another Web3 wallet.');
         setLoading(false);
         return;
       }
-      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      console.log('Requesting wallet connection...');
+      await window.ethereum.request({
+        method: 'wallet_requestPermissions',
+        params: [{ eth_accounts: {} }]
+      });
+      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      console.log('Wallet connected, accounts:', accounts);
       window.location.reload(); // Reload to reinitialize with connected account
     } catch (err) {
       console.error('Connect wallet error:', err);
-      setError('Failed to connect wallet. Please try again or check MetaMask settings.');
+      let errorMessage = 'Failed to connect wallet. Please ensure MetaMask is unlocked and set to Ethereum Mainnet.';
+      if (err.code === 4001) {
+        errorMessage = 'Wallet connection rejected. Please approve the connection in MetaMask.';
+      } else if (err.code === -32002) {
+        errorMessage = 'Connection request already pending. Please check MetaMask.';
+      }
+      setError(errorMessage);
       setLoading(false);
     }
   };
@@ -156,6 +174,7 @@ const App = () => {
             <button
               onClick={handleConnectWallet}
               className="mt-6 btn-primary btn-connect text-xl animate-glow"
+              disabled={loading}
             >
               Retry Connection
             </button>
@@ -179,6 +198,12 @@ const App = () => {
               {loading ? 'Connecting...' : 'Connect Wallet'}
             </button>
             <p className="mt-6 text-gray-400">Connect your wallet to interact with PulseStrategy.</p>
+            <p className="mt-2 text-sm text-gray-500">
+              No wallet?{' '}
+              <a href="https://metamask.io/download/" target="_blank" rel="noopener noreferrer" className="text-cyan-400 hover:text-cyan-300">
+                Install MetaMask
+              </a>
+            </p>
           </div>
         )}
       </main>
