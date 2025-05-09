@@ -5,12 +5,17 @@ const RedeemShares = ({ web3, account, contract, refresh, setRefresh }) => {
   const [plstrAmount, setPlstrAmount] = useState('');
   const [vplsReceived, setVplsReceived] = useState('0');
   const [plstrBalance, setPlstrBalance] = useState('0');
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     const fetchBalance = async () => {
-      if (web3 && account && contract) {
-        const bal = await contract.methods.balanceOf(account).call();
-        setPlstrBalance(web3.utils.fromWei(bal, 'ether'));
+      try {
+        if (web3 && account && contract) {
+          const bal = await contract.methods.balanceOf(account).call();
+          setPlstrBalance(web3.utils.fromWei(bal, 'ether'));
+        }
+      } catch (err) {
+        console.error('RedeemShares balance error:', err);
       }
     };
     fetchBalance();
@@ -35,6 +40,7 @@ const RedeemShares = ({ web3, account, contract, refresh, setRefresh }) => {
 
   const handleRedeem = async () => {
     if (!plstrAmount || Number(plstrAmount) <= 0) return alert('Enter a valid amount');
+    setLoading(true);
     try {
       const amountWei = web3.utils.toWei(plstrAmount, 'ether');
       await contract.methods.redeemShares(amountWei).send({ from: account });
@@ -42,30 +48,34 @@ const RedeemShares = ({ web3, account, contract, refresh, setRefresh }) => {
       setPlstrAmount('');
       alert('Shares redeemed successfully');
     } catch (error) {
-      console.error(error);
+      console.error('RedeemShares error:', error);
       alert('Transaction failed');
+    } finally {
+      setLoading(false);
     }
   };
 
   return (
-    <section className="bg-gray-700 p-6 rounded-lg shadow-lg">
-      <h2 className="text-2xl font-semibold mb-4">Redeem PLSTR</h2>
+    <section className="card animate-fadeIn">
+      <h2 className="text-2xl mb-6">Redeem PLSTR</h2>
       <p><strong>PLSTR Balance:</strong> {formatNumber(plstrBalance)} PLSTR</p>
-      <div className="mt-4">
-        <label className="block mb-2">PLSTR Amount to Redeem</label>
+      <div className="mt-6 space-y-4">
+        <label className="block">PLSTR Amount to Redeem</label>
         <input
           type="number"
           value={plstrAmount}
           onChange={(e) => setPlstrAmount(e.target.value)}
-          className="w-full p-2 rounded bg-gray-600 text-white"
+          className="input"
           placeholder="Enter PLSTR amount"
+          disabled={loading}
         />
-        <p className="mt-2"><strong>vPLS to Receive:</strong> {formatNumber(vplsReceived)} vPLS</p>
+        <p><strong>vPLS to Receive:</strong> {formatNumber(vplsReceived)} vPLS</p>
         <button
           onClick={handleRedeem}
-          className="mt-4 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded"
+          className="btn-primary"
+          disabled={loading}
         >
-          Redeem PLSTR
+          {loading ? 'Processing...' : 'Redeem PLSTR'}
         </button>
       </div>
     </section>
