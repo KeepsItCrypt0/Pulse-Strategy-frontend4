@@ -4,10 +4,12 @@ import { formatNumber, formatDate } from '../utils';
 const TransactionHistory = ({ web3, account, contract, refresh }) => {
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const fetchTransactions = async () => {
       setLoading(true);
+      setError(null);
       try {
         if (web3 && account && contract) {
           const events = await contract.getPastEvents('allEvents', {
@@ -25,6 +27,7 @@ const TransactionHistory = ({ web3, account, contract, refresh }) => {
         }
       } catch (err) {
         console.error('TransactionHistory error:', err);
+        setError('Failed to load transactions.');
       } finally {
         setLoading(false);
       }
@@ -34,9 +37,11 @@ const TransactionHistory = ({ web3, account, contract, refresh }) => {
 
   return (
     <section className="card animate-fadeIn">
-      <h2 className="text-2xl mb-6">Transaction History</h2>
+      <h2 className="mb-6">Transaction History</h2>
       {loading ? (
         <p className="text-gray-400">Loading transactions...</p>
+      ) : error ? (
+        <p className="text-red-400">{error}</p>
       ) : transactions.length > 0 ? (
         <table>
           <thead>
