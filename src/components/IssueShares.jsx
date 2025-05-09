@@ -7,30 +7,34 @@ const IssueShares = ({ web3, account, contract, vplsContract, refresh, setRefres
   const [fee, setFee] = useState('0');
   const [vplsBalance, setVplsBalance] = useState('0');
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  const fetchBalance = async () => {
+    try {
+      if (web3 && account && vplsContract) {
+        const bal = await vplsContract.methods.balanceOf(account).call();
+        setVplsBalance(web3.utils.fromWei(bal, 'ether'));
+      }
+    } catch (err) {
+      console.error('IssueShares balance error:', err);
+      setError('Failed to load vPLS balance.');
+    }
+  };
 
   useEffect(() => {
-    const fetchBalance = async () => {
-      try {
-        if (web3 && account && vplsContract) {
-          const bal = await vplsContract.methods.balanceOf(account).call();
-          setVplsBalance(web3.utils.fromWei(bal, 'ether'));
-        }
-      } catch (err) {
-        console.error('IssueShares balance error:', err);
-      }
-    };
     fetchBalance();
   }, [web3, account, vplsContract, refresh]);
 
   useEffect(() => {
     const calculateShares = async () => {
-      if (web3 && contract && vplsAmount) {
+      if (web3 && contract && vplsAmount && Number(vplsAmount) > 0) {
         try {
           const amountWei = web3.utils.toWei(vplsAmount, 'ether');
           const [shares, fee] = await contract.methods.calculateSharesReceived(amountWei).call();
           setPlstrReceived(web3.utils.fromWei(shares, 'ether'));
           setFee(web3.utils.fromWei(fee, 'ether'));
-        } catch {
+        } catch (err) {
+          console.error('IssueShares calculation error:', err);
           setPlstrReceived('0');
           setFee('0');
         }
@@ -45,6 +49,7 @@ const IssueShares = ({ web3, account, contract, vplsContract, refresh, setRefres
   const handleIssue = async () => {
     if (!vplsAmount || Number(vplsAmount) <= 0) return alert('Enter a valid amount');
     setLoading(true);
+    setError(null);
     try {
       const amountWei = web3.utils.toWei(vplsAmount, 'ether');
       await vplsContract.methods.approve(contract._address, amountWei).send({ from: account });
@@ -54,7 +59,7 @@ const IssueShares = ({ web3, account, contract, vplsContract, refresh, setRefres
       alert('Shares issued successfully');
     } catch (error) {
       console.error('IssueShares error:', error);
-      alert('Transaction failed');
+      setError('Transaction failed. Check your wallet and network.');
     } finally {
       setLoading(false);
     }
@@ -62,7 +67,8 @@ const IssueShares = ({ web3, account, contract, vplsContract, refresh, setRefres
 
   return (
     <section className="card animate-fadeIn">
-      <h2 className="text-2xl mb-6">Issue PLSTR</h2>
+      <h2 className="mb-6">Issue PLSTR</h2>
+      {error && <p className="text-red-400 mb-4">{error}</p>}
       <p><strong>vPLS Balance:</strong> {formatNumber(vplsBalance)} vPLS</p>
       <div className="mt-6 space-y-4">
         <label className="block">vPLS Amount to Deposit</label>
@@ -79,7 +85,7 @@ const IssueShares = ({ web3, account, contract, vplsContract, refresh, setRefres
         <p><strong>Fee (0.5%):</strong> {formatNumber(fee)} vPLS</p>
         <button
           onClick={handleIssue}
-          className="btn-primary"
+          className="btn-primary animate-glow"
           disabled={loading}
         >
           {loading ? 'Processing...' : 'Issue PLSTR'}
