@@ -31,26 +31,46 @@ const App = () => {
     const initWeb3 = async () => {
       setLoading(true);
       setError(null);
-      try {
-        let provider;
-        if (window.ethereum) {
-          provider = window.ethereum;
-          try {
-            await window.ethereum.request({ method: 'eth_requestAccounts' });
-          } catch (err) {
-            console.error('Wallet connection failed:', err);
-            setError('Failed to connect wallet. Ensure MetaMask is set to Ethereum Mainnet.');
-            setLoading(false);
-            return;
-          }
-        } else {
-          provider = new Web3.providers.HttpProvider(RPC_URLS[0]);
-          console.warn('No wallet detected, using fallback RPC');
+      let provider;
+      let web3Instance;
+
+      // Try wallet connection first
+      if (window.ethereum) {
+        provider = window.ethereum;
+        try {
+          console.log('Attempting wallet connection...');
+          await window.ethereum.request({ method: 'eth_requestAccounts' });
+          web3Instance = new Web3(provider);
+        } catch (err) {
+          console.error('Wallet connection failed:', err);
+          setError('Failed to connect wallet. Ensure MetaMask is installed and set to Ethereum Mainnet.');
+          setLoading(false);
+          return;
         }
+      } else {
+        console.warn('No wallet detected, attempting RPC fallback...');
+        // Try each RPC URL
+        for (const rpc of RPC_URLS) {
+          try {
+            console.log(`Trying RPC: ${rpc}`);
+            provider = new Web3.providers.HttpProvider(rpc);
+            web3Instance = new Web3(provider);
+            // Test connection
+            await web3Instance.eth.net.getId();
+            console.log(`RPC ${rpc} connected successfully`);
+            break;
+          } catch (err) {
+            console.error(`RPC ${rpc} failed:`, err);
+            if (rpc === RPC_URLS[RPC_URLS.length - 1]) {
+              setError('All RPC endpoints failed. Please check your network or install MetaMask.');
+              setLoading(false);
+              return;
+            }
+          }
+        }
+      }
 
-        const web3Instance = new Web3(provider);
-        console.log('Web3 initialized:', !!web3Instance);
-
+      try {
         const networkId = await web3Instance.eth.net.getId();
         if (networkId !== 1) {
           setError('Please switch to Ethereum Mainnet in your wallet.');
@@ -101,6 +121,24 @@ const App = () => {
     }
   }, [web3, account, contract]);
 
+  const handleConnectWallet = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      if (!window.ethereum) {
+        setError('No wallet detected. Please install MetaMask.');
+        setLoading(false);
+        return;
+      }
+      await window.ethereum.request({ method: 'eth_requestAccounts' });
+      window.location.reload(); // Reload to reinitialize with connected account
+    } catch (err) {
+      console.error('Connect wallet error:', err);
+      setError('Failed to connect wallet. Please try again or check MetaMask settings.');
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="min-h-screen">
       <header className="text-center py-16 bg-gradient-to-r from-cyan-900 to-purple-900">
@@ -116,10 +154,10 @@ const App = () => {
           <div className="text-center text-red-400">
             <p className="text-xl">{error}</p>
             <button
-              onClick={() => window.location.reload()}
-              className="mt-6 btn-primary"
+              onClick={handleConnectWallet}
+              className="mt-6 btn-primary btn-connect text-xl animate-glow"
             >
-              Retry
+              Retry Connection
             </button>
           </div>
         ) : account ? (
@@ -134,17 +172,11 @@ const App = () => {
         ) : (
           <div className="text-center">
             <button
-              onClick={async () => {
-                try {
-                  await window.ethereum?.request({ method: 'eth_requestAccounts' });
-                  window.location.reload();
-                } catch (err) {
-                  setError('Failed to connect wallet. Please try again.');
-                }
-              }}
-              className="btn-primary text-xl animate-glow"
+              onClick={handleConnectWallet}
+              className="btn-primary btn-connect text-xl animate-glow"
+              disabled={loading}
             >
-              Connect Wallet
+              {loading ? 'Connecting...' : 'Connect Wallet'}
             </button>
             <p className="mt-6 text-gray-400">Connect your wallet to interact with PulseStrategy.</p>
           </div>
