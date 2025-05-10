@@ -192,6 +192,8 @@ const App = () => {
       }
 
       setAccount(accounts[0] || null);
+      // Delay contract initialization to stabilize OneKey provider
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await initializeContracts(web3Instance, accounts);
       setLoading(false);
     };
@@ -263,6 +265,8 @@ const App = () => {
       const web3Instance = new Web3(window.ethereum);
       setWeb3(web3Instance);
       setAccount(accounts[0]);
+      // Delay contract initialization to stabilize OneKey provider
+      await new Promise(resolve => setTimeout(resolve, 1000));
       await initializeContracts(web3Instance, accounts);
       setLoading(false);
     } catch (err) {
