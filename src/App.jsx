@@ -74,11 +74,12 @@ const App = () => {
         try {
           console.log('Detected provider:', window.ethereum.isMetaMask ? 'MetaMask' : 'OneKey or other');
           console.log('Attempting wallet connection...');
-          await window.ethereum.request({
-            method: 'wallet_requestPermissions',
-            params: [{ eth_accounts: {} }],
-          });
-          const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+          const accounts = await Promise.race([
+            window.ethereum.request({ method: 'eth_requestAccounts' }),
+            new Promise((_, reject) =>
+              setTimeout(() => reject(new Error('Wallet connection timed out')), 10000)
+            ),
+          ]);
           console.log('Wallet connected, accounts:', accounts);
 
           const networkId = await new Web3(provider).eth.net.getId();
@@ -190,6 +191,13 @@ const App = () => {
     }
   }, [web3, account, contract]);
 
+  useEffect(() => {
+    console.log('Account state changed:', account);
+    if (account && !loading && !error) {
+      console.log('Forcing UI render with account:', account);
+    }
+  }, [account, loading, error]);
+
   const handleConnectWallet = async () => {
     setLoading(true);
     setError(null);
@@ -200,11 +208,12 @@ const App = () => {
         return;
       }
       console.log('Requesting wallet connection...');
-      await window.ethereum.request({
-        method: 'wallet_requestPermissions',
-        params: [{ eth_accounts: {} }],
-      });
-      const accounts = await window.ethereum.request({ method: 'eth_requestAccounts' });
+      const accounts = await Promise.race([
+        window.ethereum.request({ method: 'eth_requestAccounts' }),
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Wallet connection timed out')), 10000)
+        ),
+      ]);
       console.log('Wallet connected, accounts:', accounts);
 
       const networkId = await new Web3(window.ethereum).eth.net.getId();
@@ -218,7 +227,8 @@ const App = () => {
         }
       }
 
-      window.location.reload(); // Reload to reinitialize with connected account
+      setAccount(accounts[0]);
+      setLoading(false);
     } catch (err) {
       console.error('Connect wallet error:', err);
       let errorMessage = 'Failed to connect wallet. Please ensure your wallet is unlocked and set to Ethereum Mainnet.';
@@ -226,13 +236,15 @@ const App = () => {
         errorMessage = 'Wallet connection rejected. Please approve the connection in your wallet.';
       } else if (err.code === -32002) {
         errorMessage = 'Connection request already pending. Please check your wallet.';
+      } else if (err.message.includes('timed out')) {
+        errorMessage = 'Wallet connection timed out. Please try again.';
       }
       setError(errorMessage);
       setLoading(false);
     }
   };
 
-  // Debug state for rendering
+  // Detailed render state logging
   console.log('Render state:', {
     account,
     web3: !!web3,
