@@ -749,7 +749,7 @@ export const contractAbi = [
 ]
   {
     constant: true,
-    inputs: []
+    inputs: [];
     name: 'owner',
     outputs: [{ name: '', type: 'address' }],
     type: 'function'
