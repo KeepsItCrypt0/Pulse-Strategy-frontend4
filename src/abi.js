@@ -1,4 +1,4 @@
-// PLSTR ABI (replace with your actual PLSTR ABI)
+// PLSTR ABI (placeholder - replace with actual PLSTR ABI)
 export const contractAbi = [
 	{
 		"inputs": [
@@ -747,94 +747,79 @@ export const contractAbi = [
 		"type": "function"
 	}
 ]
-  {
-    constant: true,
-    inputs: [];
-    name: 'owner',
-    outputs: [{ name: '', type: 'address' }],
-    type: 'function'
-  },
-  {
-    constant: true,
-    inputs: [{ name: '_user', type: 'address' }],
-    name: 'getRedeemableStakedPLS',
-    outputs: [{ name: '', type: 'uint256' }],
-    type: 'function'
-  }
-  // Add other PLSTR functions as needed
 ];
 
-// vPLS ABI (standard ERC20)
+// vPLS ABI (standard ERC20 for 0x0181e249c507d3b454dE2444444f0Bf5dBE72d09)
 export const vplsAbi = [
   {
     constant: true,
     inputs: [],
     name: 'name',
     outputs: [{ name: '', type: 'string' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: true,
     inputs: [],
     name: 'symbol',
     outputs: [{ name: '', type: 'string' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: true,
     inputs: [],
     name: 'decimals',
     outputs: [{ name: '', type: 'uint8' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: true,
     inputs: [],
     name: 'totalSupply',
     outputs: [{ name: '', type: 'uint256' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: true,
     inputs: [{ name: '_owner', type: 'address' }],
     name: 'balanceOf',
     outputs: [{ name: 'balance', type: 'uint256' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: false,
     inputs: [
       { name: '_to', type: 'address' },
-      { name: '_value', type: 'uint256' }
+      { name: '_value', type: 'uint256' },
     ],
     name: 'transfer',
     outputs: [{ name: 'success', type: 'bool' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: false,
     inputs: [
       { name: '_spender', type: 'address' },
-      { name: '_value', type: 'uint256' }
+      { name: '_value', type: 'uint256' },
     ],
     name: 'approve',
     outputs: [{ name: 'success', type: 'bool' }],
-    type: 'function'
+    type: 'function',
   },
   {
     constant: true,
     inputs: [
       { name: '_owner', type: 'address' },
-      { name: '_spender', type: 'address' }
+      { name: '_spender', type: 'address' },
     ],
     name: 'allowance',
     outputs: [{ name: 'remaining', type: 'uint256' }],
-    type: 'function'
-  }
+    type: 'function',
+  },
 ];
 
 // INSTRUCTIONS:
-// 1. The vPLS ABI above is a standard ERC20 ABI for 0x0181e249c507d3b454dE2444444f0Bf5dBE72d09.
+// 1. The vPLS ABI is a standard ERC20 ABI for 0x0181e249c507d3b454dE2444444f0Bf5dBE72d09.
 // 2. Replace contractAbi with the actual PLSTR ABI for 0x6c1dA678A1B615f673208e74AB3510c22117090e.
 // 3. Ensure PLSTR ABI includes 'owner' and 'getRedeemableStakedPLS' functions.
-// 4. If initialization fails, share the PLSTR ABI and any console errors.
+// 4. If initialization fails, share the PLSTR ABI and console errors.
