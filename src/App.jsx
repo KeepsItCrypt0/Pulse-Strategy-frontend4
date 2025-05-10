@@ -31,7 +31,7 @@ const App = () => {
     try {
       await window.ethereum.request({
         method: 'wallet_switchEthereumChain',
-        params: [{ chainId: '0x1' }], // Ethereum Mainnet
+        params: [{ chainId: '0x1' }],
       });
       console.log('Switched to Ethereum Mainnet');
       return true;
@@ -94,6 +94,7 @@ const App = () => {
           }
 
           web3Instance = new Web3(provider);
+          console.log('Web3 instance created:', !!web3Instance);
         } catch (err) {
           console.error('Wallet connection failed:', err);
           setError('Failed to connect wallet. Ensure your wallet is unlocked and set to Ethereum Mainnet.');
@@ -130,16 +131,23 @@ const App = () => {
           return;
         }
 
+        console.log('Validating contract ABI:', !!contractAbi, contractAbi.length);
         console.log('Initializing PLSTR contract at:', PLSTR_ADDRESS);
         const plstrContract = new web3Instance.eth.Contract(contractAbi, PLSTR_ADDRESS);
         console.log('PLSTR contract initialized:', !!plstrContract);
 
+        console.log('Validating vPLS ABI:', !!vplsAbi, vplsAbi.length);
         console.log('Initializing vPLS contract at:', VPLS_ADDRESS);
         const vplsContractInstance = new web3Instance.eth.Contract(vplsAbi, VPLS_ADDRESS);
         console.log('vPLS contract initialized:', !!vplsContractInstance);
 
-        const accounts = await web3Instance.eth.getAccounts();
+        let accounts = await web3Instance.eth.getAccounts();
         console.log('Accounts after initialization:', accounts);
+        if (!accounts.length && window.ethereum) {
+          console.warn('No accounts returned, retrying eth_getAccounts...');
+          accounts = await web3Instance.eth.getAccounts();
+          console.log('Retry accounts:', accounts);
+        }
 
         setWeb3(web3Instance);
         setContract(plstrContract);
@@ -154,11 +162,10 @@ const App = () => {
         } else {
           console.warn('No accounts available after wallet connection');
         }
-
-        setLoading(false);
       } catch (err) {
-        console.error('Initialization error:', err);
-        setError('Failed to initialize contracts. Please refresh and ensure Ethereum Mainnet is selected.');
+        console.error('Contract initialization error:', err);
+        setError('Failed to initialize contracts. Please check contract addresses and ABI.');
+      } finally {
         setLoading(false);
       }
     };
@@ -166,7 +173,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    if (web3 && account && contract) {
+    if (web3 && account && contract && vplsContract) {
       console.log('Setting up event listeners for account/network changes');
       const refreshData = async () => {
         console.log('Refreshing data due to account/chain change');
@@ -189,7 +196,7 @@ const App = () => {
         window.ethereum?.removeListener('chainChanged', refreshData);
       };
     }
-  }, [web3, account, contract]);
+  }, [web3, account, contract, vplsContract]);
 
   useEffect(() => {
     console.log('Account state changed:', account);
@@ -244,7 +251,6 @@ const App = () => {
     }
   };
 
-  // Detailed render state logging
   console.log('Render state:', {
     account,
     web3: !!web3,
@@ -278,12 +284,27 @@ const App = () => {
           </div>
         ) : account ? (
           <div className="space-y-12 animate-fadeIn">
-            <WalletInfo web3={web3} account={account} contract={contract} vplsContract={vplsContract} refresh={refresh} />
-            <ContractInfo web3={web3} contract={contract} vplsContract={vplsContract} refresh={refresh} />
-            <IssueShares web3={web3} account={account} contract={contract} vplsContract={vplsContract} refresh={refresh} setRefresh={setRefresh} />
-            <RedeemShares web3={web3} account={account} contract={contract} refresh={refresh} setRefresh={setRefresh} />
-            {isOwner && <AdminPanel web3={web3} account={account} contract={contract} refresh={refresh} setRefresh={setRefresh} />}
-            <TransactionHistory web3={web3} account={account} contract={contract} refresh={refresh} />
+            {web3 && contract && vplsContract ? (
+              <>
+                <WalletInfo web3={web3} account={account} contract={contract} vplsContract={vplsContract} refresh={refresh} />
+                <ContractInfo web3={web3} contract={contract} vplsContract={vplsContract} refresh={refresh} />
+                <IssueShares web3={web3} account={account} contract={contract} vplsContract={vplsContract} refresh={refresh} setRefresh={setRefresh} />
+                <RedeemShares web3={web3} account={account} contract={contract} refresh={refresh} setRefresh={setRefresh} />
+                {isOwner && <AdminPanel web3={web3} account={account} contract={contract} refresh={refresh} setRefresh={setRefresh} />}
+                <TransactionHistory web3={web3} account={account} contract={contract} refresh={refresh} />
+              </>
+            ) : (
+              <div className="text-center text-red-400">
+                <p className="text-xl">Failed to initialize Web3 or contracts. Please refresh and try again.</p>
+                <button
+                  onClick={handleConnectWallet}
+                  className="mt-6 btn-primary btn-connect text-xl animate-glow"
+                  disabled={loading}
+                >
+                  Reconnect Wallet
+                </button>
+              </div>
+            )}
           </div>
         ) : (
           <div className="text-center">
