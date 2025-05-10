@@ -749,7 +749,7 @@ export const contractAbi = [
 ]
   {
     constant: true,
-    inputs: [],
+    inputs: []
     name: 'owner',
     outputs: [{ name: '', type: 'address' }],
     type: 'function'
@@ -762,7 +762,7 @@ export const contractAbi = [
     type: 'function'
   }
   // Add other PLSTR functions as needed
-]
+];
 
 // vPLS ABI (standard ERC20)
 export const vplsAbi = [
