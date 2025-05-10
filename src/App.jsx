@@ -62,6 +62,65 @@ const App = () => {
     }
   };
 
+  const validateContractAddress = async (web3Instance, address, name) => {
+    try {
+      const code = await web3Instance.eth.getCode(address);
+      console.log(`${name} contract code exists:`, code !== '0x');
+      return code !== '0x';
+    } catch (err) {
+      console.error(`Failed to validate ${name} contract address:`, err);
+      return false;
+    }
+  };
+
+  const initializeContracts = async (web3Instance, accounts) => {
+    try {
+      console.log('Validating contract ABI:', !!contractAbi, contractAbi.length);
+      if (!contractAbi || !Array.isArray(contractAbi)) {
+        throw new Error('Invalid PLSTR ABI');
+      }
+      console.log('Validating vPLS ABI:', !!vplsAbi, vplsAbi.length);
+      if (!vplsAbi || !Array.isArray(vplsAbi)) {
+        throw new Error('Invalid vPLS ABI');
+      }
+
+      console.log('Validating PLSTR address:', PLSTR_ADDRESS);
+      const isPlstrValid = await validateContractAddress(web3Instance, PLSTR_ADDRESS, 'PLSTR');
+      if (!isPlstrValid) {
+        throw new Error('PLSTR contract not deployed at specified address');
+      }
+
+      console.log('Validating vPLS address:', VPLS_ADDRESS);
+      const isVplsValid = await validateContractAddress(web3Instance, VPLS_ADDRESS, 'vPLS');
+      if (!isVplsValid) {
+        throw new Error('vPLS contract not deployed at specified address');
+      }
+
+      console.log('Initializing PLSTR contract at:', PLSTR_ADDRESS);
+      const plstrContract = new web3Instance.eth.Contract(contractAbi, PLSTR_ADDRESS);
+      console.log('PLSTR contract initialized:', !!plstrContract);
+
+      console.log('Initializing vPLS contract at:', VPLS_ADDRESS);
+      const vplsContractInstance = new web3Instance.eth.Contract(vplsAbi, VPLS_ADDRESS);
+      console.log('vPLS contract initialized:', !!vplsContractInstance);
+
+      setContract(plstrContract);
+      setVplsContract(vplsContractInstance);
+
+      if (accounts[0]) {
+        console.log('Checking StrategyController for account:', accounts[0]);
+        const owner = await plstrContract.methods.owner().call();
+        console.log('StrategyController:', owner);
+        setIsOwner(accounts[0].toLowerCase() === owner.toLowerCase());
+      } else {
+        console.warn('No accounts available for owner check');
+      }
+    } catch (err) {
+      console.error('Contract initialization error:', err);
+      setError(`Failed to initialize contracts: ${err.message}`);
+    }
+  };
+
   useEffect(() => {
     const initWeb3 = async () => {
       setLoading(true);
@@ -122,52 +181,19 @@ const App = () => {
         }
       }
 
-      try {
-        const networkId = await web3Instance.eth.net.getId();
-        console.log('Final network ID check:', networkId);
-        if (networkId !== 1) {
-          setError('Network mismatch. Please ensure your wallet is on Ethereum Mainnet.');
-          setLoading(false);
-          return;
-        }
+      setWeb3(web3Instance);
 
-        console.log('Validating contract ABI:', !!contractAbi, contractAbi.length);
-        console.log('Initializing PLSTR contract at:', PLSTR_ADDRESS);
-        const plstrContract = new web3Instance.eth.Contract(contractAbi, PLSTR_ADDRESS);
-        console.log('PLSTR contract initialized:', !!plstrContract);
-
-        console.log('Validating vPLS ABI:', !!vplsAbi, vplsAbi.length);
-        console.log('Initializing vPLS contract at:', VPLS_ADDRESS);
-        const vplsContractInstance = new web3Instance.eth.Contract(vplsAbi, VPLS_ADDRESS);
-        console.log('vPLS contract initialized:', !!vplsContractInstance);
-
-        let accounts = await web3Instance.eth.getAccounts();
-        console.log('Accounts after initialization:', accounts);
-        if (!accounts.length && window.ethereum) {
-          console.warn('No accounts returned, retrying eth_getAccounts...');
-          accounts = await web3Instance.eth.getAccounts();
-          console.log('Retry accounts:', accounts);
-        }
-
-        setWeb3(web3Instance);
-        setContract(plstrContract);
-        setVplsContract(vplsContractInstance);
-        setAccount(accounts[0] || null);
-
-        if (accounts[0]) {
-          console.log('Checking StrategyController for account:', accounts[0]);
-          const owner = await plstrContract.methods.owner().call();
-          console.log('StrategyController:', owner);
-          setIsOwner(accounts[0].toLowerCase() === owner.toLowerCase());
-        } else {
-          console.warn('No accounts available after wallet connection');
-        }
-      } catch (err) {
-        console.error('Contract initialization error:', err);
-        setError('Failed to initialize contracts. Please check contract addresses and ABI.');
-      } finally {
-        setLoading(false);
+      let accounts = await web3Instance.eth.getAccounts();
+      console.log('Accounts after initialization:', accounts);
+      if (!accounts.length && window.ethereum) {
+        console.warn('No accounts returned, retrying eth_getAccounts...');
+        accounts = await web3Instance.eth.getAccounts();
+        console.log('Retry accounts:', accounts);
       }
+
+      setAccount(accounts[0] || null);
+      await initializeContracts(web3Instance, accounts);
+      setLoading(false);
     };
     initWeb3();
   }, []);
@@ -234,7 +260,10 @@ const App = () => {
         }
       }
 
+      const web3Instance = new Web3(window.ethereum);
+      setWeb3(web3Instance);
       setAccount(accounts[0]);
+      await initializeContracts(web3Instance, accounts);
       setLoading(false);
     } catch (err) {
       console.error('Connect wallet error:', err);
@@ -249,6 +278,18 @@ const App = () => {
       setError(errorMessage);
       setLoading(false);
     }
+  };
+
+  const retryInitialization = async () => {
+    if (!web3 || !account) {
+      setError('Please connect wallet first.');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const accounts = await web3.eth.getAccounts();
+    await initializeContracts(web3, accounts);
+    setLoading(false);
   };
 
   console.log('Render state:', {
@@ -295,10 +336,17 @@ const App = () => {
               </>
             ) : (
               <div className="text-center text-red-400">
-                <p className="text-xl">Failed to initialize Web3 or contracts. Please refresh and try again.</p>
+                <p className="text-xl">Failed to initialize Web3 or contracts. Please retry or check contract settings.</p>
+                <button
+                  onClick={retryInitialization}
+                  className="mt-6 btn-primary btn-connect text-xl animate-glow"
+                  disabled={loading}
+                >
+                  Retry Initialization
+                </button>
                 <button
                   onClick={handleConnectWallet}
-                  className="mt-6 btn-primary btn-connect text-xl animate-glow"
+                  className="mt-4 btn-primary btn-connect text-xl animate-glow"
                   disabled={loading}
                 >
                   Reconnect Wallet
