@@ -746,7 +746,6 @@ export const contractAbi = [
 		"stateMutability": "view",
 		"type": "function"
 	}
-]
 ];
 
 // vPLS ABI (standard ERC20 for 0x0181e249c507d3b454dE2444444f0Bf5dBE72d09)
